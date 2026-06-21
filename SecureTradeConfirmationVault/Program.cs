@@ -27,6 +27,7 @@ namespace SecureTradeConfirmationVault
             byte[] key;
             byte[] iV;
             byte[] ciphertext;
+            byte[] ciphertext2;
 
             using (Aes aes = Aes.Create()) //you get instance of Aes from the factory method
             {
@@ -40,15 +41,29 @@ namespace SecureTradeConfirmationVault
                 using (MemoryStream ms = new MemoryStream())
                 {
                     byte[] plaintextBytes = Encoding.UTF8.GetBytes(tradeconfirm1);
-                    byte[] plaintextBytes2 = Encoding.UTF8.GetBytes(tradeconfirm2);
                     using (CryptoStream cryptoStream = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write))
                     {
                         // ms.Write(hashedTrade); this isnt writing to the cryptoStream
                         cryptoStream.Write(plaintextBytes, 0, plaintextBytes.Length);
-                        cryptoStream.Write(plaintextBytes2, 0, plaintextBytes2.Length);
+                        cryptoStream.FlushFinalBlock();
                     }
                     ciphertext = ms.ToArray();
                     string cipherBase64 = Convert.ToBase64String(ciphertext);
+                    Console.WriteLine(cipherBase64);
+                }
+
+                using (ICryptoTransform cryptoTransform2 = aes.CreateEncryptor())
+                using (MemoryStream ms2 = new MemoryStream())
+                {
+                    byte[] plaintextBytes2 = Encoding.UTF8.GetBytes(tradeconfirm2);
+                    using (CryptoStream cryptoStream = new CryptoStream(ms2, cryptoTransform2, CryptoStreamMode.Write))
+                    {
+                        // ms.Write(hashedTrade); this isnt writing to the cryptoStream
+                        cryptoStream.Write(plaintextBytes2, 0, plaintextBytes2.Length);
+                        cryptoStream.FlushFinalBlock();
+                    }
+                    ciphertext2 = ms2.ToArray();
+                    string cipherBase64 = Convert.ToBase64String(ciphertext2);
                     Console.WriteLine(cipherBase64);
                 }
             }
@@ -56,9 +71,6 @@ namespace SecureTradeConfirmationVault
 
             using (Aes aes = Aes.Create())
             {
-
-                aes.CreateDecryptor();
-
                 //key and IV retrieved here
                 aes.Key = key;
                 aes.IV = iV;
@@ -74,9 +86,25 @@ namespace SecureTradeConfirmationVault
                         Console.WriteLine(decrypted == tradeconfirm1);
                     }
                 }
+
+                using (ICryptoTransform cryptoDecrypt2 = aes.CreateDecryptor())
+                using (MemoryStream vault = new MemoryStream(ciphertext2))
+                using (CryptoStream cryptoStream2 = new CryptoStream(vault, cryptoDecrypt2, CryptoStreamMode.Read))
+                {
+                    using (StreamReader reader = new StreamReader(cryptoStream2))
+                    {
+                        string decrypted2 = reader.ReadToEnd();
+                        Console.WriteLine(decrypted2);
+                        Console.WriteLine(decrypted2 == tradeconfirm2);
+                    }
+                }
             }
+
             bool result = VerifyIntegrity(tradeconfirm1, hexTrade);
             Console.WriteLine(result ? "Proved it matches" : "Does NOT match its original hash");
+
+            bool matchesTampered = VerifyIntegrity(tradeconfirm1, tamperedHexTrade);
+            Console.WriteLine(matchesTampered ? "Proved it matches" : "Does NOT match its original hash");
         }
 
         public static bool VerifyIntegrity(string original, string hashToCheck)
