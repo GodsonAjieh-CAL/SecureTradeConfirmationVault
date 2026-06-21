@@ -24,13 +24,17 @@ namespace SecureTradeConfirmationVault
             string tamperedHexTrade = Convert.ToHexString(tamperedHashedTrade);
             Console.WriteLine(tamperedHexTrade);
 
+            byte[] key;
+            byte[] iV;
+            byte[] ciphertext;
+
             using (Aes aes = Aes.Create()) //you get instance of Aes from the factory method
             {
                 aes.GenerateKey();
                 aes.GenerateIV();
 
-                byte[] key = aes.Key;
-                byte[] iV = aes.IV;
+                key = aes.Key;
+                iV = aes.IV;
 
                 using (ICryptoTransform cryptoTransform = aes.CreateEncryptor())
                 using (MemoryStream ms = new MemoryStream())
@@ -41,26 +45,23 @@ namespace SecureTradeConfirmationVault
                     {
                         // ms.Write(hashedTrade); this isnt writing to the cryptoStream
                         cryptoStream.Write(plaintextBytes, 0, plaintextBytes.Length);
-                    }
-                    using (CryptoStream cryptoStream = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write))
-                    {
-                        // you need a separate stream as this cant be in the same using cryptostream
                         cryptoStream.Write(plaintextBytes2, 0, plaintextBytes2.Length);
                     }
-                    Console.WriteLine(ms.ToString());
-                    byte[] ciphertext = ms.ToArray();
+                    ciphertext = ms.ToArray();
                     string cipherBase64 = Convert.ToBase64String(ciphertext);
                     Console.WriteLine(cipherBase64);
                 }
             }
 
+
             using (Aes aes = Aes.Create())
             {
+
                 aes.CreateDecryptor();
 
                 //key and IV retrieved here
-                aes.Key = Key;
-                aes.IV = iv;
+                aes.Key = key;
+                aes.IV = iV;
 
                 using (ICryptoTransform cryptoDecrypt = aes.CreateDecryptor())
                 using (MemoryStream vault = new MemoryStream(ciphertext))
@@ -100,7 +101,7 @@ namespace SecureTradeConfirmationVault
             {
                 return false;
             }
-            return true; */ 
+            return true; */
         }
     }
 }
